@@ -1,12 +1,12 @@
+# 优先设置Matplotlib后端（必须在导入pyplot前执行）
+import matplotlib
+matplotlib.use('Agg')
+
 import streamlit as st
 import sqlite3
 import os
 from datetime import datetime
 import pandas as pd
-
-# 优先切换 Matplotlib 为无 GUI 后端（避免绘图报错）
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
@@ -17,6 +17,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# 获取应用基础目录（兼容所有系统）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# 商品图片存储目录（相对路径）
+PHOTO_DIR = os.path.join(BASE_DIR, "product_photos")
+# 数据库文件路径（相对路径）
+DB_FILE = os.path.join(BASE_DIR, "store_management.db")
 
 # Matplotlib 中文支持配置
 plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
@@ -159,9 +166,10 @@ st.markdown(f"""
 
 # ===================== 数据库管理类 =====================
 class DatabaseManager:
-    def __init__(self, db_name="store_management.db"):
+    def __init__(self, db_name=DB_FILE):
         self.db_name = db_name
-        self.photo_dir = r"D:\streamlit_env\product_photos"
+        self.photo_dir = PHOTO_DIR
+        # 创建图片目录（若不存在）
         if not os.path.exists(self.photo_dir):
             os.makedirs(self.photo_dir)
         self.init_database()
@@ -173,7 +181,7 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        # 员工表
+        # 1. 员工表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS staff (
                 staff_id TEXT PRIMARY KEY,
@@ -182,6 +190,7 @@ class DatabaseManager:
             )
         ''')
         
+        # 仅当表为空时初始化默认员工数据
         cursor.execute("SELECT COUNT(*) FROM staff")
         if cursor.fetchone()[0] == 0:
             staff_members = [
@@ -195,7 +204,7 @@ class DatabaseManager:
                 VALUES (?, ?, ?)
             ''', staff_members)
         
-        # 用户表
+        # 2. 用户表（关联员工表）
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 username TEXT PRIMARY KEY,
@@ -206,6 +215,7 @@ class DatabaseManager:
             )
         ''')
         
+        # 仅当表为空时初始化默认用户数据
         cursor.execute("SELECT COUNT(*) FROM users")
         if cursor.fetchone()[0] == 0:
             cursor.execute('''
@@ -217,7 +227,7 @@ class DatabaseManager:
                 VALUES (?, ?, ?, ?)
             ''', ("test", "123456", "staff002", "user"))
         
-        # 商品表
+        # 3. 商品表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS products (
                 product_id TEXT PRIMARY KEY,
@@ -231,26 +241,27 @@ class DatabaseManager:
             )
         ''')
         
+        # 批量初始化商品（仅表为空时执行，不预设图片路径）
         cursor.execute("SELECT COUNT(*) FROM products")
         if cursor.fetchone()[0] == 0:
             product_list = [
-                ("p001", "土豆", 2.5, 100, "蔬菜", "staff001", os.path.join(self.photo_dir, "tudou.jpg")),
-                ("p002", "鸡肉", 15.8, 50, "肉类", "staff001", os.path.join(self.photo_dir, "jirou.jpg")),
-                ("p003", "牛肉", 38.6, 30, "肉类", "staff001", os.path.join(self.photo_dir, "niurou.jpg")),
-                ("p004", "辣椒", 3.2, 80, "蔬菜", "staff001", os.path.join(self.photo_dir, "lajiao.jpg")),
-                ("p005", "面包", 4.5, 60, "食品", "staff001", os.path.join(self.photo_dir, "mb.jpg")),
-                ("p006", "胡萝卜", 2.8, 70, "蔬菜", "staff001", os.path.join(self.photo_dir, "hulb.jpg")),
-                ("p007", "快餐面", 5.0, 120, "食品", "staff001", os.path.join(self.photo_dir, "kcs.jpg")),
-                ("p008", "牙膏", 9.9, 90, "日用品", "staff001", os.path.join(self.photo_dir, "yagao.jpg")),
-                ("p009", "洗发水", 25.8, 40, "日用品", "staff001", os.path.join(self.photo_dir, "xifashui.jpg")),
-                ("p010", "笔记本", 8.5, 75, "文具", "staff001", os.path.join(self.photo_dir, "bjb.jpg")),
+                ("p001", "土豆", 2.5, 100, "蔬菜", "staff001", ""),
+                ("p002", "鸡肉", 15.8, 50, "肉类", "staff001", ""),
+                ("p003", "牛肉", 38.6, 30, "肉类", "staff001", ""),
+                ("p004", "辣椒", 3.2, 80, "蔬菜", "staff001", ""),
+                ("p005", "面包", 4.5, 60, "食品", "staff001", ""),
+                ("p006", "胡萝卜", 2.8, 70, "蔬菜", "staff001", ""),
+                ("p007", "快餐面", 5.0, 120, "食品", "staff001", ""),
+                ("p008", "牙膏", 9.9, 90, "日用品", "staff001", ""),
+                ("p009", "洗发水", 25.8, 40, "日用品", "staff001", ""),
+                ("p010", "笔记本", 8.5, 75, "文具", "staff001", ""),
             ]
             cursor.executemany('''
                 INSERT INTO products (product_id, name, price, quantity, category, staff_id, photo_path)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', product_list)
         
-        # 销售记录表
+        # 4. 销售记录表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS sales (
                 sale_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -264,7 +275,7 @@ class DatabaseManager:
             )
         ''')
         
-        # 库存操作记录表
+        # 5. 库存操作记录表
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS inventory_operations (
                 operation_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,6 +290,7 @@ class DatabaseManager:
             )
         ''')
         
+        # 兼容旧表结构
         self._update_table_structure(cursor, "users")
         
         conn.commit()
@@ -510,10 +522,11 @@ sales_dao = SalesDAO(db_manager)
 inventory_dao = InventoryDAO(db_manager)
 staff_dao = StaffDAO(db_manager)
 
-photo_dir = r"D:\streamlit_env\product_photos"
-if not os.path.exists(photo_dir):
-    os.makedirs(photo_dir)
+# 初始化图片目录（兼容部署环境）
+if not os.path.exists(PHOTO_DIR):
+    os.makedirs(PHOTO_DIR)
 
+# 初始化Streamlit会话状态
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_info" not in st.session_state:
@@ -550,7 +563,11 @@ def login_page():
                                     "position": user[5]
                                 }
                                 st.success(f"欢迎 {user[4]}（{user[5]}）！")
-                                st.rerun()
+                                # 兼容新旧版本Streamlit
+                                try:
+                                    st.rerun()
+                                except:
+                                    st.experimental_rerun()
                             else:
                                 st.error("密码错误！")
                         else:
@@ -559,7 +576,11 @@ def login_page():
             with col_btn2:
                 if st.button("注册", use_container_width=True, key="show_register_btn"):
                     st.session_state.show_register = True
-                    st.rerun()
+                    # 兼容新旧版本Streamlit
+                    try:
+                        st.rerun()
+                    except:
+                        st.experimental_rerun()
     
     if st.session_state.show_register:
         st.markdown("---")
@@ -586,13 +607,21 @@ def login_page():
                             if success:
                                 st.success(msg)
                                 st.session_state.show_register = False
-                                st.rerun()
+                                # 兼容新旧版本Streamlit
+                                try:
+                                    st.rerun()
+                                except:
+                                    st.experimental_rerun()
                             else:
                                 st.error(msg)
                 with col_reg2:
                     if st.button("取消注册", use_container_width=True, key="cancel_register_btn"):
                         st.session_state.show_register = False
-                        st.rerun()
+                        # 兼容新旧版本Streamlit
+                        try:
+                            st.rerun()
+                        except:
+                            st.experimental_rerun()
 
 # ===================== 主系统页面 =====================
 def main_system():
@@ -630,16 +659,19 @@ def main_system():
                 
                 st.subheader("商品图片配置")
                 uploaded_photo = st.file_uploader("上传新商品照片", type=["jpg", "jpeg", "png", "bmp"], key="product_photo_upload")
-                existing_photos = ["tudou.jpg", "jirou.jpg", "niurou.jpg", "lajiao.jpg", "mb.jpg", "hulb.jpg", "kcs.jpg", "yagao.jpg", "xifashui.jpg", "bjb.jpg"]
+                # 动态获取现有图片（不硬编码）
+                existing_photos = []
+                if os.path.exists(PHOTO_DIR):
+                    existing_photos = [f for f in os.listdir(PHOTO_DIR) if f.endswith((".jpg", ".jpeg", ".png", ".bmp"))]
                 selected_photo = st.selectbox("选择已有图片（优先使用）", [""] + existing_photos, key="select_existing_photo")
 
                 photo_path = ""
                 if selected_photo and product_id:
-                    photo_path = os.path.join(photo_dir, selected_photo)
+                    photo_path = os.path.join(PHOTO_DIR, selected_photo)
                     st.success(f"已选择图片：{selected_photo}")
                 elif uploaded_photo and product_id:
                     photo_filename = f"{product_id}_{uploaded_photo.name}"
-                    photo_path = os.path.join(photo_dir, photo_filename)
+                    photo_path = os.path.join(PHOTO_DIR, photo_filename)
                     with open(photo_path, "wb") as f:
                         f.write(uploaded_photo.getbuffer())
                     st.success(f"图片上传成功：{photo_filename}")
@@ -652,7 +684,10 @@ def main_system():
                         if all([product_id, product_name, product_category, staff_id]):
                             if product_dao.add_product(product_id, product_name, product_price, product_quantity, product_category, staff_id, photo_path):
                                 st.success("商品添加成功！")
-                                st.rerun()
+                                try:
+                                    st.rerun()
+                                except:
+                                    st.experimental_rerun()
                             else:
                                 st.error("商品ID已存在！")
                         else:
@@ -663,7 +698,10 @@ def main_system():
                         if all([product_id, product_name, product_category, staff_id]):
                             if product_dao.update_product(product_id, product_name, product_price, product_quantity, product_category, staff_id, photo_path):
                                 st.success("商品更新成功！")
-                                st.rerun()
+                                try:
+                                    st.rerun()
+                                except:
+                                    st.experimental_rerun()
                             else:
                                 st.error("商品不存在！")
                         else:
@@ -673,9 +711,20 @@ def main_system():
                     if st.button("删除商品", use_container_width=True, key="delete_product_btn"):
                         if product_id:
                             if st.confirm("确定要删除该商品吗？此操作不可恢复！"):
+                                # 删除商品时同步删除图片
+                                product_info = product_dao.get_product(product_id)
+                                if product_info and product_info[7] and os.path.exists(product_info[7]):
+                                    try:
+                                        os.remove(product_info[7])
+                                    except:
+                                        pass
+                                # 删除商品
                                 if product_dao.delete_product(product_id):
                                     st.success("商品删除成功！")
-                                    st.rerun()
+                                    try:
+                                        st.rerun()
+                                    except:
+                                        st.experimental_rerun()
                                 else:
                                     st.error("商品不存在！")
                         else:
@@ -694,7 +743,10 @@ def main_system():
 
                 with col_btn4:
                     if st.button("清空表单", use_container_width=True, key="clear_product_form_btn"):
-                        st.rerun()
+                        try:
+                            st.rerun()
+                        except:
+                            st.experimental_rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_product_form_btn"] button {{
@@ -806,7 +858,10 @@ def main_system():
                             sales_dao.add_sale(sale_product_id, product_info[1], sale_quantity, product_info[2], total_price)
                             product_dao.update_product_quantity(sale_product_id, -sale_quantity)
                             st.success(f"销售成功！总价：¥{total_price:.2f}")
-                            st.rerun()
+                            try:
+                                st.rerun()
+                            except:
+                                st.experimental_rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="complete_sale_btn"] button {{
@@ -821,7 +876,10 @@ def main_system():
                 
                 with col_btn2:
                     if st.button("清空表单", use_container_width=True, key="clear_sale_form_btn"):
-                        st.rerun()
+                        try:
+                            st.rerun()
+                        except:
+                            st.experimental_rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_sale_form_btn"] button {{
@@ -898,7 +956,10 @@ def main_system():
                             product_dao.update_product_quantity(inv_product_id, quantity_change)
                             inventory_dao.add_operation(inv_product_id, "in" if operation_type == "入库" else "out", inv_quantity, inv_staff_id, inv_notes)
                             st.success(f"{operation_type}操作成功！")
-                            st.rerun()
+                            try:
+                                st.rerun()
+                            except:
+                                st.experimental_rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="execute_inv_op_btn"] button {{
@@ -913,7 +974,10 @@ def main_system():
                 
                 with col_btn2:
                     if st.button("清空表单", use_container_width=True, key="clear_inv_form_btn"):
-                        st.rerun()
+                        try:
+                            st.rerun()
+                        except:
+                            st.experimental_rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_inv_form_btn"] button {{
@@ -1164,7 +1228,10 @@ def main_system():
         if st.button("退出登录", use_container_width=True, key="logout_btn"):
             st.session_state.logged_in = False
             st.session_state.user_info = None
-            st.rerun()
+            try:
+                st.rerun()
+            except:
+                st.experimental_rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ===================== 程序入口 =====================
