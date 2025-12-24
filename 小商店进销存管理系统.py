@@ -563,11 +563,7 @@ def login_page():
                                     "position": user[5]
                                 }
                                 st.success(f"欢迎 {user[4]}（{user[5]}）！")
-                                # 兼容新旧版本Streamlit
-                                try:
-                                    st.rerun()
-                                except:
-                                    st.experimental_rerun()
+                                st.rerun()  # 仅保留新版API
                             else:
                                 st.error("密码错误！")
                         else:
@@ -576,11 +572,7 @@ def login_page():
             with col_btn2:
                 if st.button("注册", use_container_width=True, key="show_register_btn"):
                     st.session_state.show_register = True
-                    # 兼容新旧版本Streamlit
-                    try:
-                        st.rerun()
-                    except:
-                        st.experimental_rerun()
+                    st.rerun()  # 仅保留新版API
     
     if st.session_state.show_register:
         st.markdown("---")
@@ -607,21 +599,13 @@ def login_page():
                             if success:
                                 st.success(msg)
                                 st.session_state.show_register = False
-                                # 兼容新旧版本Streamlit
-                                try:
-                                    st.rerun()
-                                except:
-                                    st.experimental_rerun()
+                                st.rerun()  # 仅保留新版API
                             else:
                                 st.error(msg)
                 with col_reg2:
                     if st.button("取消注册", use_container_width=True, key="cancel_register_btn"):
                         st.session_state.show_register = False
-                        # 兼容新旧版本Streamlit
-                        try:
-                            st.rerun()
-                        except:
-                            st.experimental_rerun()
+                        st.rerun()  # 仅保留新版API
 
 # ===================== 主系统页面 =====================
 def main_system():
@@ -684,10 +668,7 @@ def main_system():
                         if all([product_id, product_name, product_category, staff_id]):
                             if product_dao.add_product(product_id, product_name, product_price, product_quantity, product_category, staff_id, photo_path):
                                 st.success("商品添加成功！")
-                                try:
-                                    st.rerun()
-                                except:
-                                    st.experimental_rerun()
+                                st.rerun()  # 仅保留新版API
                             else:
                                 st.error("商品ID已存在！")
                         else:
@@ -698,10 +679,7 @@ def main_system():
                         if all([product_id, product_name, product_category, staff_id]):
                             if product_dao.update_product(product_id, product_name, product_price, product_quantity, product_category, staff_id, photo_path):
                                 st.success("商品更新成功！")
-                                try:
-                                    st.rerun()
-                                except:
-                                    st.experimental_rerun()
+                                st.rerun()  # 仅保留新版API
                             else:
                                 st.error("商品不存在！")
                         else:
@@ -721,10 +699,7 @@ def main_system():
                                 # 删除商品
                                 if product_dao.delete_product(product_id):
                                     st.success("商品删除成功！")
-                                    try:
-                                        st.rerun()
-                                    except:
-                                        st.experimental_rerun()
+                                    st.rerun()  # 仅保留新版API
                                 else:
                                     st.error("商品不存在！")
                         else:
@@ -743,10 +718,7 @@ def main_system():
 
                 with col_btn4:
                     if st.button("清空表单", use_container_width=True, key="clear_product_form_btn"):
-                        try:
-                            st.rerun()
-                        except:
-                            st.experimental_rerun()
+                        st.rerun()  # 仅保留新版API
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_product_form_btn"] button {{
@@ -858,10 +830,7 @@ def main_system():
                             sales_dao.add_sale(sale_product_id, product_info[1], sale_quantity, product_info[2], total_price)
                             product_dao.update_product_quantity(sale_product_id, -sale_quantity)
                             st.success(f"销售成功！总价：¥{total_price:.2f}")
-                            try:
-                                st.rerun()
-                            except:
-                                st.experimental_rerun()
+                            st.rerun()  # 仅保留新版API
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="complete_sale_btn"] button {{
@@ -876,10 +845,7 @@ def main_system():
                 
                 with col_btn2:
                     if st.button("清空表单", use_container_width=True, key="clear_sale_form_btn"):
-                        try:
-                            st.rerun()
-                        except:
-                            st.experimental_rerun()
+                        st.rerun()  # 仅保留新版API
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_sale_form_btn"] button {{
@@ -956,10 +922,7 @@ def main_system():
                             product_dao.update_product_quantity(inv_product_id, quantity_change)
                             inventory_dao.add_operation(inv_product_id, "in" if operation_type == "入库" else "out", inv_quantity, inv_staff_id, inv_notes)
                             st.success(f"{operation_type}操作成功！")
-                            try:
-                                st.rerun()
-                            except:
-                                st.experimental_rerun()
+                            st.rerun()  # 仅保留新版API
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="execute_inv_op_btn"] button {{
@@ -974,10 +937,7 @@ def main_system():
                 
                 with col_btn2:
                     if st.button("清空表单", use_container_width=True, key="clear_inv_form_btn"):
-                        try:
-                            st.rerun()
-                        except:
-                            st.experimental_rerun()
+                        st.rerun()  # 仅保留新版API
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_inv_form_btn"] button {{
@@ -1228,10 +1188,7 @@ def main_system():
         if st.button("退出登录", use_container_width=True, key="logout_btn"):
             st.session_state.logged_in = False
             st.session_state.user_info = None
-            try:
-                st.rerun()
-            except:
-                st.experimental_rerun()
+            st.rerun()  # 仅保留新版API
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ===================== 程序入口 =====================
