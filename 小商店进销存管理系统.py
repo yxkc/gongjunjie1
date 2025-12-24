@@ -13,7 +13,7 @@ import io
 
 # ===================== 全局配置 =====================
 st.set_page_config(
-    page_title="商店管理系统",
+    page_title="小商店进销存管理系统",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -526,12 +526,11 @@ staff_dao = StaffDAO(db_manager)
 if not os.path.exists(PHOTO_DIR):
     os.makedirs(PHOTO_DIR)
 
-# ===================== 自动登录逻辑（核心改造：使用st.query_params替代废弃API） =====================
+# ===================== 自动登录逻辑 =====================
 def auto_login_from_url():
-    """从URL参数中读取用户信息，自动完成登录验证（使用新版st.query_params）"""
-    # 获取URL查询参数（新版API：直接通过st.query_params访问，无需调用方法）
+    """从URL参数中读取用户信息，自动完成登录验证"""
     if "username" in st.query_params and st.query_params["username"]:
-        username = st.query_params["username"]  # 新版API直接取值（无需[0]，自动处理单值参数）
+        username = st.query_params["username"]
         # 验证用户是否存在
         user = user_dao.get_user(username)
         if user:
@@ -561,7 +560,7 @@ if not st.session_state.logged_in:
 
 # ===================== 登录/注册页面 =====================
 def login_page():
-    st.markdown('<div class="main-title">商店管理系统</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">小商店进销存管理系统</div>', unsafe_allow_html=True)
     
     with st.container(border=True):
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -587,7 +586,7 @@ def login_page():
                                     "staff_name": user[4],
                                     "position": user[5]
                                 }
-                                # 登录成功后，设置URL参数（新版API：直接赋值st.query_params）
+                                # 登录成功后，设置URL参数
                                 st.query_params["username"] = username
                                 st.success(f"欢迎 {user[4]}（{user[5]}）！")
                                 st.rerun()
@@ -639,7 +638,7 @@ def main_system():
     st.markdown(f"""
         <div style="background-color: {PRIMARY_COLOR}; padding: 1rem 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">商店管理系统</h1>
+                <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">小商店进销存管理系统</h1>
                 <div style="color: white; font-size: 14px; background-color: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 6px;">
                     当前用户：{st.session_state.user_info['staff_name']}（{st.session_state.user_info['position']}）
                 </div>
@@ -1213,8 +1212,8 @@ def main_system():
     with col_logout[1]:
         st.markdown('<div class="danger-btn">', unsafe_allow_html=True)
         if st.button("退出登录", use_container_width=True, key="logout_btn"):
-            # 退出登录时，清空URL参数（新版API：直接清空st.query_params）
-            st.query_params.clear()  # 清空所有URL参数
+            # 退出登录时，清空URL参数
+            st.query_params.clear()
             st.session_state.logged_in = False
             st.session_state.user_info = None
             st.rerun()
