@@ -526,6 +526,27 @@ staff_dao = StaffDAO(db_manager)
 if not os.path.exists(PHOTO_DIR):
     os.makedirs(PHOTO_DIR)
 
+# ===================== 自动登录逻辑（核心改造：使用st.query_params替代废弃API） =====================
+def auto_login_from_url():
+    """从URL参数中读取用户信息，自动完成登录验证（使用新版st.query_params）"""
+    # 获取URL查询参数（新版API：直接通过st.query_params访问，无需调用方法）
+    if "username" in st.query_params and st.query_params["username"]:
+        username = st.query_params["username"]  # 新版API直接取值（无需[0]，自动处理单值参数）
+        # 验证用户是否存在
+        user = user_dao.get_user(username)
+        if user:
+            # 恢复登录状态
+            st.session_state.logged_in = True
+            st.session_state.user_info = {
+                "username": user[0],
+                "role": user[2],
+                "staff_id": user[3],
+                "staff_name": user[4],
+                "position": user[5]
+            }
+            return True
+    return False
+
 # 初始化Streamlit会话状态
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -533,6 +554,10 @@ if "user_info" not in st.session_state:
     st.session_state.user_info = None
 if "show_register" not in st.session_state:
     st.session_state.show_register = False
+
+# 页面加载时，尝试自动登录
+if not st.session_state.logged_in:
+    auto_login_from_url()
 
 # ===================== 登录/注册页面 =====================
 def login_page():
@@ -562,8 +587,10 @@ def login_page():
                                     "staff_name": user[4],
                                     "position": user[5]
                                 }
+                                # 登录成功后，设置URL参数（新版API：直接赋值st.query_params）
+                                st.query_params["username"] = username
                                 st.success(f"欢迎 {user[4]}（{user[5]}）！")
-                                st.rerun()  # 仅保留新版API
+                                st.rerun()
                             else:
                                 st.error("密码错误！")
                         else:
@@ -572,7 +599,7 @@ def login_page():
             with col_btn2:
                 if st.button("注册", use_container_width=True, key="show_register_btn"):
                     st.session_state.show_register = True
-                    st.rerun()  # 仅保留新版API
+                    st.rerun()
     
     if st.session_state.show_register:
         st.markdown("---")
@@ -599,13 +626,13 @@ def login_page():
                             if success:
                                 st.success(msg)
                                 st.session_state.show_register = False
-                                st.rerun()  # 仅保留新版API
+                                st.rerun()
                             else:
                                 st.error(msg)
                 with col_reg2:
                     if st.button("取消注册", use_container_width=True, key="cancel_register_btn"):
                         st.session_state.show_register = False
-                        st.rerun()  # 仅保留新版API
+                        st.rerun()
 
 # ===================== 主系统页面 =====================
 def main_system():
@@ -668,7 +695,7 @@ def main_system():
                         if all([product_id, product_name, product_category, staff_id]):
                             if product_dao.add_product(product_id, product_name, product_price, product_quantity, product_category, staff_id, photo_path):
                                 st.success("商品添加成功！")
-                                st.rerun()  # 仅保留新版API
+                                st.rerun()
                             else:
                                 st.error("商品ID已存在！")
                         else:
@@ -679,7 +706,7 @@ def main_system():
                         if all([product_id, product_name, product_category, staff_id]):
                             if product_dao.update_product(product_id, product_name, product_price, product_quantity, product_category, staff_id, photo_path):
                                 st.success("商品更新成功！")
-                                st.rerun()  # 仅保留新版API
+                                st.rerun()
                             else:
                                 st.error("商品不存在！")
                         else:
@@ -699,7 +726,7 @@ def main_system():
                                 # 删除商品
                                 if product_dao.delete_product(product_id):
                                     st.success("商品删除成功！")
-                                    st.rerun()  # 仅保留新版API
+                                    st.rerun()
                                 else:
                                     st.error("商品不存在！")
                         else:
@@ -718,7 +745,7 @@ def main_system():
 
                 with col_btn4:
                     if st.button("清空表单", use_container_width=True, key="clear_product_form_btn"):
-                        st.rerun()  # 仅保留新版API
+                        st.rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_product_form_btn"] button {{
@@ -830,7 +857,7 @@ def main_system():
                             sales_dao.add_sale(sale_product_id, product_info[1], sale_quantity, product_info[2], total_price)
                             product_dao.update_product_quantity(sale_product_id, -sale_quantity)
                             st.success(f"销售成功！总价：¥{total_price:.2f}")
-                            st.rerun()  # 仅保留新版API
+                            st.rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="complete_sale_btn"] button {{
@@ -845,7 +872,7 @@ def main_system():
                 
                 with col_btn2:
                     if st.button("清空表单", use_container_width=True, key="clear_sale_form_btn"):
-                        st.rerun()  # 仅保留新版API
+                        st.rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_sale_form_btn"] button {{
@@ -922,7 +949,7 @@ def main_system():
                             product_dao.update_product_quantity(inv_product_id, quantity_change)
                             inventory_dao.add_operation(inv_product_id, "in" if operation_type == "入库" else "out", inv_quantity, inv_staff_id, inv_notes)
                             st.success(f"{operation_type}操作成功！")
-                            st.rerun()  # 仅保留新版API
+                            st.rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="execute_inv_op_btn"] button {{
@@ -937,7 +964,7 @@ def main_system():
                 
                 with col_btn2:
                     if st.button("清空表单", use_container_width=True, key="clear_inv_form_btn"):
-                        st.rerun()  # 仅保留新版API
+                        st.rerun()
                     st.markdown(f"""
                         <style>
                         [data-testid="stButton"][data-key="clear_inv_form_btn"] button {{
@@ -1186,9 +1213,11 @@ def main_system():
     with col_logout[1]:
         st.markdown('<div class="danger-btn">', unsafe_allow_html=True)
         if st.button("退出登录", use_container_width=True, key="logout_btn"):
+            # 退出登录时，清空URL参数（新版API：直接清空st.query_params）
+            st.query_params.clear()  # 清空所有URL参数
             st.session_state.logged_in = False
             st.session_state.user_info = None
-            st.rerun()  # 仅保留新版API
+            st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ===================== 程序入口 =====================
