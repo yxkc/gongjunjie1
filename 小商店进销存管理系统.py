@@ -12,8 +12,25 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import io
 
-# 重建字体缓存（兼容新旧版本Matplotlib）
+# ===================== 工具函数 =====================
+def confirm_dialog(message, key_suffix="", target_state=None):
+    """确认对话框"""
+    st.warning(message)
+    col1, col2 = st.columns(2, gap="small")
+    with col1:
+        if st.button("确认", use_container_width=True, key=f"confirm_{key_suffix}"):
+            if target_state:
+                st.session_state[target_state] = True
+            st.rerun()
+    with col2:
+        if st.button("取消", use_container_width=True, key=f"cancel_{key_suffix}"):
+            if target_state:
+                st.session_state["delete_product_id"] = None
+                st.session_state[target_state] = False
+            st.rerun()
+
 def rebuild_font_cache():
+    """重建字体缓存"""
     try:
         fm._load_fontmanager(try_read_cache=False)
     except AttributeError:
@@ -96,6 +113,7 @@ st.markdown(f"""
         font-weight: 600;
         margin-bottom: 1rem;
         border-left: 4px solid {SECONDARY_COLOR};
+        padding-left: 10px;
     }}
     .stButton>button {{
         background-color: {SECONDARY_COLOR};
@@ -492,6 +510,10 @@ if "user_info" not in st.session_state:
     st.session_state.user_info = None
 if "show_register" not in st.session_state:
     st.session_state.show_register = False
+if "delete_product_id" not in st.session_state:
+    st.session_state.delete_product_id = None
+if "delete_confirmed" not in st.session_state:
+    st.session_state.delete_confirmed = False
 
 # 自动登录
 def auto_login_from_url():
@@ -660,25 +682,43 @@ def main_system():
                 with col_btn3:
                     if st.button("删除商品", use_container_width=True, key="delete_product_btn"):
                         if product_id:
-                            if st.confirm("确定要删除该商品吗？此操作不可恢复！"):
-                                product_info = product_dao.get_product(product_id)
-                                if product_info and product_info[7] and os.path.exists(product_info[7]):
-                                    try:
-                                        os.remove(product_info[7])
-                                    except:
-                                        pass
-                                if product_dao.delete_product(product_id):
-                                    st.success("商品删除成功！")
-                                    st.rerun()
-                                else:
-                                    st.error("商品不存在！")
+                            st.session_state["delete_product_id"] = product_id
+                            st.session_state["delete_confirmed"] = False
+                            st.rerun()
                         else:
                             st.error("请输入商品ID！")
 
                 with col_btn4:
                     if st.button("清空表单", use_container_width=True, key="clear_product_form_btn"):
+                        st.session_state["delete_product_id"] = None
+                        st.session_state["delete_confirmed"] = False
                         st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
+
+                # 删除确认逻辑
+                if st.session_state["delete_product_id"]:
+                    confirm_dialog(
+                        "确定要删除该商品吗？此操作不可恢复！",
+                        key_suffix=f"delete_{st.session_state['delete_product_id']}",
+                        target_state="delete_confirmed"
+                    )
+
+                if st.session_state["delete_confirmed"] and st.session_state["delete_product_id"]:
+                    product_id_to_delete = st.session_state["delete_product_id"]
+                    try:
+                        product_info = product_dao.get_product(product_id_to_delete)
+                        if product_info and product_info[7] and os.path.exists(product_info[7]):
+                            os.remove(product_info[7])
+                        if product_dao.delete_product(product_id_to_delete):
+                            st.success("商品删除成功！")
+                        else:
+                            st.error("商品不存在！")
+                    except Exception as e:
+                        st.error(f"删除失败：{str(e)}")
+                    finally:
+                        st.session_state["delete_product_id"] = None
+                        st.session_state["delete_confirmed"] = False
+                        st.rerun()
         
         with col_list:
             with st.container(border=True):
@@ -877,7 +917,7 @@ def main_system():
                             "操作后库存": op[8] if op[8] else 0,
                             "操作时间": op[5],
                             "操作人员": op[6],
-                            "备注": op[7]
+                            "备注": op[7] if op[7] else "无"
                         })
                     op_df = pd.DataFrame(op_data)
                     
