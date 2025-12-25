@@ -36,3 +36,7 @@ typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.6.2
 watchdog==6.0.0
+# 补充缺失的Excel导出依赖
+openpyxl>=3.1.0
+# 补充matplotlib（确保中文显示功能正常）
+matplotlib>=3.7.0
