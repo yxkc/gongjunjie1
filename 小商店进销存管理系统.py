@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 from PIL import Image
 import io
 
@@ -25,9 +26,15 @@ PHOTO_DIR = os.path.join(BASE_DIR, "product_photos")
 # 数据库文件路径（相对路径）
 DB_FILE = os.path.join(BASE_DIR, "store_management.db")
 
-# Matplotlib 中文支持配置
-plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
+# Matplotlib 中文支持配置（终极兜底方案）
 plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示异常
+# 定义全局中文字体（兼容Streamlit Cloud环境）
+try:
+    # 优先加载系统中文字体
+    chinese_font = FontProperties(family=["WenQuanYi Micro Hei", "Heiti TC", "DejaVu Sans"], size=12, weight="bold")
+except:
+    # 兜底字体（确保中文渲染）
+    chinese_font = FontProperties(family="DejaVu Sans", size=12, weight="bold")
 
 # 颜色常量定义
 PRIMARY_COLOR = "#2c3e50"
@@ -594,7 +601,6 @@ def login_page():
                                 st.error("密码错误！")
                         else:
                             st.error("用户名不存在！")
-            
             with col_btn2:
                 if st.button("注册", use_container_width=True, key="show_register_btn"):
                     st.session_state.show_register = True
@@ -1055,21 +1061,21 @@ def main_system():
                     
                     plt.close('all')
                     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
-                    fig.suptitle("销售数据统计报表", fontsize=16, fontweight=600, y=0.98)
+                    fig.suptitle("销售数据统计报表", fontproperties=chinese_font, fontsize=16, fontweight=600, y=0.98)
                     
                     daily_sales = sale_df.groupby(sale_df['sale_date'].dt.date)['total_price'].sum()
                     ax1.plot(daily_sales.index, daily_sales.values, marker='o', color=SECONDARY_COLOR, linewidth=2, markersize=6)
-                    ax1.set_title("每日销售额趋势", fontweight=600)
-                    ax1.set_xlabel("日期")
-                    ax1.set_ylabel("销售额（¥）")
+                    ax1.set_title("每日销售额趋势", fontproperties=chinese_font, fontweight=600)
+                    ax1.set_xlabel("日期", fontproperties=chinese_font)
+                    ax1.set_ylabel("销售额（¥）", fontproperties=chinese_font)
                     ax1.tick_params(axis='x', rotation=45)
                     ax1.grid(alpha=0.3)
                     
                     product_sales = sale_df.groupby('product_name')['quantity'].sum().sort_values(ascending=False).head(10)
                     bars = ax2.bar(product_sales.index, product_sales.values, color=SUCCESS_COLOR, alpha=0.8)
-                    ax2.set_title("商品销售数量排行（TOP10）", fontweight=600)
-                    ax2.set_xlabel("商品名称")
-                    ax2.set_ylabel("销售数量")
+                    ax2.set_title("商品销售数量排行（TOP10）", fontproperties=chinese_font, fontweight=600)
+                    ax2.set_xlabel("商品名称", fontproperties=chinese_font)
+                    ax2.set_ylabel("销售数量", fontproperties=chinese_font)
                     ax2.tick_params(axis='x', rotation=45)
                     ax2.grid(alpha=0.3, axis='y')
                     for bar in bars:
@@ -1081,16 +1087,19 @@ def main_system():
                     colors = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6']
                     wedges, texts, autotexts = ax3.pie(product_revenue.values, labels=product_revenue.index, autopct='%1.1f%%', 
                                                         colors=colors, startangle=90)
-                    ax3.set_title("商品销售额占比（TOP5）", fontweight=600)
+                    ax3.set_title("商品销售额占比（TOP5）", fontproperties=chinese_font, fontweight=600)
                     for autotext in autotexts:
                         autotext.set_color('white')
                         autotext.set_fontweight(600)
+                    # 修复饼图标签字体
+                    for text in texts:
+                        text.set_fontproperties(chinese_font)
                     
                     hourly_sales = sale_df.groupby(sale_df['sale_date'].dt.hour)['total_price'].sum()
                     bars = ax4.bar(hourly_sales.index, hourly_sales.values, color=WARNING_COLOR, alpha=0.8)
-                    ax4.set_title("销售时间分布（按小时）", fontweight=600)
-                    ax4.set_xlabel("小时")
-                    ax4.set_ylabel("销售额（¥）")
+                    ax4.set_title("销售时间分布（按小时）", fontproperties=chinese_font, fontweight=600)
+                    ax4.set_xlabel("小时", fontproperties=chinese_font)
+                    ax4.set_ylabel("销售额（¥）", fontproperties=chinese_font)
                     ax4.grid(alpha=0.3, axis='y')
                     for bar in bars:
                         height = bar.get_height()
@@ -1114,17 +1123,20 @@ def main_system():
                             key="export_sale_csv_btn"
                         )
                     with col_export2:
-                        excel_buffer = io.BytesIO()
-                        sale_df.to_excel(excel_buffer, index=False, engine='openpyxl')
-                        excel_buffer.seek(0)
-                        st.download_button(
-                            "导出Excel格式",
-                            data=excel_buffer,
-                            file_name=f"销售报表_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="export_sale_excel_btn"
-                        )
+                        try:
+                            excel_buffer = io.BytesIO()
+                            sale_df.to_excel(excel_buffer, index=False, engine='openpyxl')
+                            excel_buffer.seek(0)
+                            st.download_button(
+                                "导出Excel格式",
+                                data=excel_buffer,
+                                file_name=f"销售报表_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True,
+                                key="export_sale_excel_btn"
+                            )
+                        except ImportError:
+                            st.warning("未安装openpyxl，无法导出Excel格式")
             
             else:
                 products = product_dao.get_all_products()
@@ -1137,22 +1149,25 @@ def main_system():
                     
                     plt.close('all')
                     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
-                    fig.suptitle("库存数据统计报表", fontsize=16, fontweight=600, y=0.98)
+                    fig.suptitle("库存数据统计报表", fontproperties=chinese_font, fontsize=16, fontweight=600, y=0.98)
                     
                     category_stock = product_df.groupby('category')['quantity'].sum()
                     colors = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6']
                     wedges, texts, autotexts = ax1.pie(category_stock.values, labels=category_stock.index, autopct='%1.1f%%', 
                                                         colors=colors[:len(category_stock)], startangle=90)
-                    ax1.set_title("库存类别分布（按数量）", fontweight=600)
+                    ax1.set_title("库存类别分布（按数量）", fontproperties=chinese_font, fontweight=600)
                     for autotext in autotexts:
                         autotext.set_color('white')
                         autotext.set_fontweight(600)
+                    # 修复饼图标签字体
+                    for text in texts:
+                        text.set_fontproperties(chinese_font)
                     
                     top_value = product_df.nlargest(5, 'stock_value')
                     bars = ax2.bar(top_value['name'], top_value['stock_value'], color=SECONDARY_COLOR, alpha=0.8)
-                    ax2.set_title("商品库存价值排行（TOP5）", fontweight=600)
-                    ax2.set_xlabel("商品名称")
-                    ax2.set_ylabel("库存价值（¥）")
+                    ax2.set_title("商品库存价值排行（TOP5）", fontproperties=chinese_font, fontweight=600)
+                    ax2.set_xlabel("商品名称", fontproperties=chinese_font)
+                    ax2.set_ylabel("库存价值（¥）", fontproperties=chinese_font)
                     ax2.tick_params(axis='x', rotation=45)
                     ax2.grid(alpha=0.3, axis='y')
                     for bar in bars:
@@ -1162,9 +1177,9 @@ def main_system():
                     
                     top_quantity = product_df.nlargest(5, 'quantity')
                     bars = ax3.bar(top_quantity['name'], top_quantity['quantity'], color=SUCCESS_COLOR, alpha=0.8)
-                    ax3.set_title("商品库存数量排行（TOP5）", fontweight=600)
-                    ax3.set_xlabel("商品名称")
-                    ax3.set_ylabel("库存数量")
+                    ax3.set_title("商品库存数量排行（TOP5）", fontproperties=chinese_font, fontweight=600)
+                    ax3.set_xlabel("商品名称", fontproperties=chinese_font)
+                    ax3.set_ylabel("库存数量", fontproperties=chinese_font)
                     ax3.tick_params(axis='x', rotation=45)
                     ax3.grid(alpha=0.3, axis='y')
                     for bar in bars:
@@ -1173,9 +1188,9 @@ def main_system():
                                 f'{int(height)}', ha='center', va='bottom', fontsize=9)
                     
                     ax4.hist(product_df['price'], bins=10, edgecolor='black', color=WARNING_COLOR, alpha=0.8)
-                    ax4.set_title("商品价格分布", fontweight=600)
-                    ax4.set_xlabel("价格（¥）")
-                    ax4.set_ylabel("商品数量")
+                    ax4.set_title("商品价格分布", fontproperties=chinese_font, fontweight=600)
+                    ax4.set_xlabel("价格（¥）", fontproperties=chinese_font)
+                    ax4.set_ylabel("商品数量", fontproperties=chinese_font)
                     ax4.grid(alpha=0.3, axis='y')
                     
                     plt.tight_layout()
@@ -1195,17 +1210,20 @@ def main_system():
                             key="export_stock_csv_btn"
                         )
                     with col_export2:
-                        excel_buffer = io.BytesIO()
-                        product_df.to_excel(excel_buffer, index=False, engine='openpyxl')
-                        excel_buffer.seek(0)
-                        st.download_button(
-                            "导出Excel格式",
-                            data=excel_buffer,
-                            file_name=f"库存报表_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="export_stock_excel_btn"
-                        )
+                        try:
+                            excel_buffer = io.BytesIO()
+                            product_df.to_excel(excel_buffer, index=False, engine='openpyxl')
+                            excel_buffer.seek(0)
+                            st.download_button(
+                                "导出Excel格式",
+                                data=excel_buffer,
+                                file_name=f"库存报表_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True,
+                                key="export_stock_excel_btn"
+                            )
+                        except ImportError:
+                            st.warning("未安装openpyxl，无法导出Excel格式")
     
     st.markdown("---")
     col_logout = st.columns([10, 1])
